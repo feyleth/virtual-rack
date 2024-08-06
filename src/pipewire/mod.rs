@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, cell::RefCell, error::Error, rc::Rc};
+use std::{cell::RefCell, error::Error, rc::Rc};
 
 use pipewire::{
     context::Context,
@@ -9,7 +9,8 @@ use pipewire::{
     types::ObjectType,
 };
 use proxies::Proxies;
-use state::State;
+use state::{State, StateChangeEvent};
+use tokio::sync::broadcast;
 use tracing::error;
 
 pub mod node;
@@ -18,7 +19,9 @@ pub mod state;
 
 use std::thread::{self, JoinHandle};
 
-pub fn create_pipewire_runner() -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
+pub fn create_pipewire_runner(
+    state_broadcast: broadcast::Sender<StateChangeEvent>,
+) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
     thread::spawn(move || {
         let mainloop = MainLoop::new(None)?;
         let context = Context::new(&mainloop)?;
@@ -28,65 +31,62 @@ pub fn create_pipewire_runner() -> JoinHandle<Result<(), Box<dyn Error + Send + 
 
         let proxies = Proxies::new();
 
-        let state = Rc::new(RefCell::new(State::new()));
+        let state = Rc::new(RefCell::new(State::new(state_broadcast)));
 
         let _register = registry
             .add_listener_local()
             .global(move |global| {
                 let state = state.clone();
                 if global.type_ == ObjectType::Node {
-                    let node_name = global.props.and_then(|props| props.get(&keys::NODE_NAME));
-                    if node_name.is_some() {
-                        let node: Node = registry_clone.bind(global).unwrap();
-                        let id = global.id;
-                        let clone_state = state.clone();
-                        let listener = node
-                            .add_listener_local()
-                            .info(move |info| {
-                                let state = clone_state.clone();
-                                let res: Result<(), &str> = (move || {
-                                    let mut state = (*state).borrow_mut();
-                                    if info.change_mask().contains(NodeChangeMask::PROPS) {
-                                        let name = info
-                                            .props()
-                                            .ok_or("no props")?
-                                            .get(&keys::NODE_NAME)
-                                            .ok_or("no name")?;
-                                        state.change_node(node::Node {
-                                            id: info.id(),
-                                            state: info.state().into(),
-                                            name: name.to_string(),
-                                            in_ports: vec![],
-                                            out_ports: vec![],
-                                        });
-                                    }
-                                    if info.change_mask().contains(NodeChangeMask::STATE)
-                                        && !info.change_mask().contains(NodeChangeMask::PROPS)
-                                    {
-                                        state.get_node(info.id()).state = info.state().into();
-                                    }
-                                    Ok(())
-                                })();
-                                match res {
-                                    Ok(_) => (),
-                                    Err(e) => error!("error {}", e),
+                    let node: Node = registry_clone.bind(global).unwrap();
+                    let id = global.id;
+                    let clone_state = state.clone();
+                    let listener = node
+                        .add_listener_local()
+                        .info(move |info| {
+                            let state = clone_state.clone();
+                            let res: Result<(), &str> = (move || {
+                                let mut state = (*state).borrow_mut();
+                                if info.change_mask().contains(NodeChangeMask::PROPS) {
+                                    let name = info
+                                        .props()
+                                        .ok_or("no props")?
+                                        .get(&keys::NODE_NAME)
+                                        .ok_or("no name")?;
+                                    state.change_node(node::NodeValue {
+                                        id,
+                                        name: name.to_owned(),
+                                        state: info.state().into(),
+                                        in_ports: vec![],
+                                        out_ports: vec![],
+                                    });
                                 }
-                            })
-                            .register();
-                        let remove_listener = node
-                            .upcast_ref()
-                            .add_listener_local()
-                            .removed(move || {
-                                (*state).borrow_mut().remove_node(id);
-                            })
-                            .register();
+                                if info.change_mask().contains(NodeChangeMask::STATE)
+                                    && !info.change_mask().contains(NodeChangeMask::PROPS)
+                                {
+                                    state.get_node(info.id()).change_state(info.state().into());
+                                }
+                                Ok(())
+                            })();
+                            match res {
+                                Ok(_) => (),
+                                Err(e) => error!("error {}", e),
+                            }
+                        })
+                        .register();
+                    let remove_listener = node
+                        .upcast_ref()
+                        .add_listener_local()
+                        .removed(move || {
+                            (*state).borrow_mut().remove_node(id);
+                        })
+                        .register();
 
-                        (*proxies)
-                            .borrow_mut()
-                            .add_proxy(node)
-                            .add_listener(listener)
-                            .add_listener(remove_listener);
-                    }
+                    (*proxies)
+                        .borrow_mut()
+                        .add_proxy(node)
+                        .add_listener(listener)
+                        .add_listener(remove_listener);
                 }
             })
             .register();

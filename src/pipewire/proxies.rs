@@ -5,7 +5,6 @@ use std::{
 };
 
 use pipewire::proxy::{Listener, ProxyListener, ProxyT};
-use tracing::{error, info};
 
 pub struct Proxies {
     proxies_t: HashMap<u32, Box<dyn ProxyT>>,
