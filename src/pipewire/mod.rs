@@ -1,4 +1,4 @@
-use std::{cell::RefCell, error::Error, rc::Rc};
+use std::{error::Error, rc::Rc};
 
 use pipewire::{
     context::Context,
@@ -9,8 +9,7 @@ use pipewire::{
     types::ObjectType,
 };
 use proxies::Proxies;
-use state::{State, StateChangeEvent};
-use tokio::sync::broadcast;
+use state::State;
 use tracing::error;
 
 pub mod node;
@@ -20,7 +19,7 @@ pub mod state;
 use std::thread::{self, JoinHandle};
 
 pub fn create_pipewire_runner(
-    state_broadcast: broadcast::Sender<StateChangeEvent>,
+    state: State,
 ) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
     thread::spawn(move || {
         let mainloop = MainLoop::new(None)?;
@@ -30,8 +29,6 @@ pub fn create_pipewire_runner(
         let registry_clone = Rc::clone(&registry);
 
         let proxies = Proxies::new();
-
-        let state = Rc::new(RefCell::new(State::new(state_broadcast)));
 
         let _register = registry
             .add_listener_local()
@@ -46,7 +43,6 @@ pub fn create_pipewire_runner(
                         .info(move |info| {
                             let state = clone_state.clone();
                             let res: Result<(), &str> = (move || {
-                                let mut state = (*state).borrow_mut();
                                 if info.change_mask().contains(NodeChangeMask::PROPS) {
                                     let name = info
                                         .props()
@@ -78,7 +74,7 @@ pub fn create_pipewire_runner(
                         .upcast_ref()
                         .add_listener_local()
                         .removed(move || {
-                            (*state).borrow_mut().remove_node(id);
+                            state.remove_node(id);
                         })
                         .register();
 

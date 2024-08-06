@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use tokio::{runtime::Builder, sync::broadcast, task};
 use tokio_stream::{wrappers::BroadcastStream, StreamExt};
 use tracing::{info, trace};
@@ -7,7 +9,7 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
     EnvFilter,
 };
-use virtual_rack::pipewire::create_pipewire_runner;
+use virtual_rack::pipewire::{create_pipewire_runner, state::State};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let runtime = Builder::new_multi_thread()
@@ -20,11 +22,15 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with(EnvFilter::from_default_env())
         .init();
     trace!("start");
-    let (state_broadcast, mut changes) = broadcast::channel(50);
 
+    let state = State::new();
+    let state_clone = state.clone();
     runtime.spawn(async move {
+        sleep(Duration::from_secs(2));
+        let (state, mut events) = state_clone.subscribe();
+        info!("start state {:#?}", state);
         loop {
-            let change = changes.recv().await;
+            let change = events.recv().await;
             match change {
                 Ok(node_event) => match node_event {
                     virtual_rack::pipewire::state::StateChangeEvent::AddNode(node) => {
@@ -46,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
         }
     });
-    create_pipewire_runner(state_broadcast)
+    create_pipewire_runner(state)
         .join()
         .expect("not to pannic")?;
 

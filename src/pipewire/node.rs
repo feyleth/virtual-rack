@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::broadcast;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NodeChangeEvent {
     Id(u32),
     Name(String),
@@ -10,7 +10,7 @@ pub enum NodeChangeEvent {
     Remove,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NodeValue {
     pub id: u32,
     pub name: String,
@@ -82,6 +82,43 @@ impl Node {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use crate::pipewire::node::{NodeChangeEvent, NodeValue};
+
+    use super::Node;
+
+    #[tokio::test]
+    async fn subcribe_after_change() {
+        let node = Node::new(super::NodeValue {
+            id: 1,
+            name: "test".to_owned(),
+            state: super::State::Idle,
+            in_ports: vec![],
+            out_ports: vec![],
+        });
+        let (new_node, mut events) = node.subcribe();
+        node.change_state(super::State::Running);
+
+        assert_eq!(
+            new_node,
+            NodeValue {
+                id: 1,
+                name: "test".to_owned(),
+                state: crate::pipewire::node::State::Idle,
+                in_ports: vec![],
+                out_ports: vec![]
+            }
+        );
+        assert_eq!(
+            events.recv().await,
+            Ok(NodeChangeEvent::State(
+                crate::pipewire::node::State::Running
+            ))
+        );
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum State {
     Creating,
@@ -103,7 +140,7 @@ impl From<pipewire::node::NodeState<'_>> for State {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Port {
     pub id: u32,
 }

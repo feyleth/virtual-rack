@@ -1,60 +1,85 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use tokio::sync::broadcast;
 
-use super::node::{Node, NodeChangeEvent, NodeValue};
+use super::node::{Node, NodeValue};
 
-#[derive(Clone, Debug)]
-pub struct NodeChange {
-    pub id: u32,
-    pub event: NodeChangeEvent,
-}
 #[derive(Clone, Debug)]
 pub enum StateChangeEvent {
     AddNode(Node),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
+pub struct StateValue {
+    pub nodes: HashMap<u32, Node>,
+}
+
+#[derive(Clone)]
 pub struct State {
-    nodes: HashMap<u32, Node>,
+    value: Arc<Mutex<StateValue>>,
     broadcast: broadcast::Sender<StateChangeEvent>,
 }
 
+impl std::fmt::Debug for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = self.value.lock().expect("Faile to get mutex");
+        f.write_fmt(format_args!("{:#?}", value))
+    }
+}
+
 impl State {
-    pub fn new(broadcast: broadcast::Sender<StateChangeEvent>) -> Self {
+    pub fn new() -> Self {
+        let (broadcast, _) = broadcast::channel(25);
         State {
-            nodes: HashMap::new(),
+            value: Arc::new(Mutex::new(StateValue {
+                nodes: HashMap::new(),
+            })),
             broadcast,
         }
     }
 
-    pub fn change_node(&mut self, node: NodeValue) -> &mut Self {
-        let store_node = self.nodes.get_mut(&node.id);
-        if let Some(store_node) = store_node {
+    pub(crate) fn change_node(&self, node: NodeValue) -> &Self {
+        let mut state = self.value.lock().expect("Faile to get mutex");
+        if let Some(store_node) = state.nodes.get_mut(&node.id) {
             store_node.apply_diff(node);
         } else {
             let id = node.id;
-            self.nodes.insert(id, Node::new(node));
-            let node = self.nodes.get(&id).expect("node exist");
+            state.nodes.insert(id, Node::new(node));
+            let node = state.nodes.get(&id).expect("node exist");
 
             let _ = self.broadcast.send(StateChangeEvent::AddNode(node.clone()));
         }
         self
     }
 
-    pub fn get_node(&mut self, node_id: u32) -> &mut Node {
-        let state = self.nodes.get_mut(&node_id).unwrap();
-        state
+    pub fn get_node(&self, node_id: u32) -> Node {
+        self.value
+            .lock()
+            .expect("Faile to get mutex")
+            .nodes
+            .get_mut(&node_id)
+            .unwrap()
+            .clone()
     }
 
-    pub fn remove_node(&mut self, node_id: u32) {
-        let node = self.nodes.remove_entry(&node_id);
+    pub(crate) fn remove_node(&self, node_id: u32) {
+        let node = self
+            .value
+            .lock()
+            .expect("Faile to get mutex")
+            .nodes
+            .remove_entry(&node_id);
         if let Some((_, node)) = node {
             node.remove();
         }
     }
 
-    pub fn subscribe_event(&self) -> broadcast::Receiver<StateChangeEvent> {
-        self.broadcast.subscribe()
+    pub fn subscribe(&self) -> (StateValue, broadcast::Receiver<StateChangeEvent>) {
+        let state = self.value.lock().expect("Faile to get mutex");
+        let subscribe = self.broadcast.subscribe();
+        ((*state).clone(), subscribe)
     }
 }
