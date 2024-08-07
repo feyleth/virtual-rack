@@ -20,6 +20,7 @@ pub struct StateValue {
 #[derive(Clone)]
 pub struct State {
     value: Arc<Mutex<StateValue>>,
+    port_map: Arc<Mutex<HashMap<u32, u32>>>,
     broadcast: broadcast::Sender<StateChangeEvent>,
 }
 
@@ -37,6 +38,7 @@ impl State {
             value: Arc::new(Mutex::new(StateValue {
                 nodes: HashMap::new(),
             })),
+            port_map: Arc::new(Mutex::new(HashMap::new())),
             broadcast,
         }
     }
@@ -75,6 +77,26 @@ impl State {
         if let Some((_, node)) = node {
             node.remove();
         }
+    }
+    pub(crate) fn add_map_port(&self, port_id: u32, node_id: u32) {
+        self.port_map
+            .lock()
+            .expect("Faile to get mutex")
+            .insert(port_id, node_id);
+    }
+    pub(crate) fn modify_map_port(&self, port_id: u32, node_id: u32) {
+        self.port_map
+            .lock()
+            .expect("Faile to get mutex")
+            .entry(port_id)
+            .and_modify(|value| *value = node_id);
+    }
+    pub(crate) fn get_map_port(&self, port_id: u32) -> Option<u32> {
+        self.port_map
+            .lock()
+            .expect("Faile to get mutex")
+            .get(&port_id)
+            .map(|value| value.clone())
     }
 
     pub fn subscribe(&self) -> (StateValue, broadcast::Receiver<StateChangeEvent>) {
