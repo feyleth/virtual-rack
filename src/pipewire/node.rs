@@ -1,5 +1,8 @@
-use std::sync::{Arc, Mutex};
+#[cfg(all(feature = "shuttle", test))]
+use shuttle::sync::{Arc, Mutex};
 
+#[cfg(not(all(feature = "shuttle", test)))]
+use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -84,37 +87,70 @@ impl Node {
 
 #[cfg(test)]
 mod test {
-    use crate::pipewire::node::{NodeChangeEvent, NodeValue};
 
-    use super::Node;
+    #[test]
+    #[cfg(feature = "shuttle")]
+    fn subcribe_after_change() {
+        use shuttle::thread;
+        use tokio::runtime::Builder;
 
-    #[tokio::test]
-    async fn subcribe_after_change() {
-        let node = Node::new(super::NodeValue {
-            id: 1,
-            name: "test".to_owned(),
-            state: super::State::Idle,
-            in_ports: vec![],
-            out_ports: vec![],
-        });
-        let (new_node, mut events) = node.subcribe();
-        node.change_state(super::State::Running);
+        use crate::pipewire::node::{NodeChangeEvent, NodeValue};
 
-        assert_eq!(
-            new_node,
-            NodeValue {
-                id: 1,
-                name: "test".to_owned(),
-                state: crate::pipewire::node::State::Idle,
-                in_ports: vec![],
-                out_ports: vec![]
-            }
-        );
-        assert_eq!(
-            events.recv().await,
-            Ok(NodeChangeEvent::State(
-                crate::pipewire::node::State::Running
-            ))
+        use super::Node;
+        shuttle::check_random(
+            move || {
+                let node = Node::new(super::NodeValue {
+                    id: 1,
+                    name: "test".to_owned(),
+                    state: super::State::Idle,
+                    in_ports: vec![],
+                    out_ports: vec![],
+                });
+
+                let clone_node = node.clone();
+                let subcribe_thread = thread::spawn(move || clone_node.subcribe());
+                thread::spawn(move || {
+                    node.change_state(super::State::Running);
+                })
+                .join()
+                .unwrap();
+
+                let (new_node, mut events) = subcribe_thread.join().unwrap();
+
+                if new_node.state == crate::pipewire::node::State::Idle {
+                    assert_eq!(
+                        new_node,
+                        NodeValue {
+                            id: 1,
+                            name: "test".to_owned(),
+                            state: crate::pipewire::node::State::Idle,
+                            in_ports: vec![],
+                            out_ports: vec![]
+                        }
+                    );
+
+                    shuttle::future::block_on(async move {
+                        assert_eq!(
+                            events.recv().await,
+                            Ok(NodeChangeEvent::State(
+                                crate::pipewire::node::State::Running
+                            ))
+                        );
+                    });
+                } else {
+                    assert_eq!(
+                        new_node,
+                        NodeValue {
+                            id: 1,
+                            name: "test".to_owned(),
+                            state: crate::pipewire::node::State::Running,
+                            in_ports: vec![],
+                            out_ports: vec![]
+                        }
+                    );
+                }
+            },
+            1000,
         );
     }
 }

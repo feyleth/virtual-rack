@@ -3,6 +3,9 @@ name = "virtual-rack"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+shuttle=[]
+
 [dependencies]
 pipewire = "0.8.0"
 structdiff = "0.7.1"
@@ -10,3 +13,7 @@ tokio = { version = "1.39.2", features = ["macros", "rt-multi-thread", "sync"] }
 tokio-stream = { version = "0.1.15", features = ["sync"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+
+[dev-dependencies]
+shuttle = "0.7.1"
+
