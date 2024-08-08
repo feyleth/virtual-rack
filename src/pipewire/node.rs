@@ -9,7 +9,7 @@ use tokio::sync::broadcast;
 #[derive(Clone, Debug, PartialEq)]
 pub enum NodeChangeEvent {
     Name(String),
-    State(State),
+    State(NodeState),
     AddPort(Port),
     ModifyPort(Port),
     RemovePort(u32),
@@ -20,7 +20,7 @@ pub enum NodeChangeEvent {
 pub struct NodeValue {
     pub id: u32,
     pub name: String,
-    pub state: State,
+    pub state: NodeState,
     pub media: Media,
     pub ports: HashMap<u32, Port>,
 }
@@ -58,7 +58,7 @@ impl Node {
         self.change_state(node.state);
     }
 
-    pub(crate) fn change_state(&self, state: State) -> &Self {
+    pub(crate) fn change_state(&self, state: NodeState) -> &Self {
         let mut node_value = self.value.lock().expect("Faile to get mutex");
         if node_value.state != state {
             node_value.state = state.clone();
@@ -120,7 +120,7 @@ mod test {
                 let node = Node::new(super::NodeValue {
                     id: 1,
                     name: "test".to_owned(),
-                    state: super::State::Idle,
+                    state: super::NodeState::Idle,
                     class: Format::Audio,
                     ports: HashMap::new(),
                 });
@@ -128,21 +128,21 @@ mod test {
                 let clone_node = node.clone();
                 let subcribe_thread = thread::spawn(move || clone_node.subcribe());
                 thread::spawn(move || {
-                    node.change_state(super::State::Running);
+                    node.change_state(super::NodeState::Running);
                 })
                 .join()
                 .unwrap();
 
                 let (new_node, mut events) = subcribe_thread.join().unwrap();
 
-                if new_node.state == crate::pipewire::node::State::Idle {
+                if new_node.state == crate::pipewire::node::NodeState::Idle {
                     assert_eq!(
                         new_node,
                         NodeValue {
                             id: 1,
                             name: "test".to_owned(),
                             class: Format::Audio,
-                            state: crate::pipewire::node::State::Idle,
+                            state: crate::pipewire::node::NodeState::Idle,
                             ports: HashMap::new(),
                         }
                     );
@@ -151,7 +151,7 @@ mod test {
                         assert_eq!(
                             events.recv().await,
                             Ok(NodeChangeEvent::State(
-                                crate::pipewire::node::State::Running
+                                crate::pipewire::node::NodeState::Running
                             ))
                         );
                     });
@@ -162,7 +162,7 @@ mod test {
                             id: 1,
                             name: "test".to_owned(),
                             class: Format::Audio,
-                            state: crate::pipewire::node::State::Running,
+                            state: crate::pipewire::node::NodeState::Running,
                             ports: HashMap::new(),
                         }
                     );
@@ -174,7 +174,7 @@ mod test {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum State {
+pub enum NodeState {
     Creating,
     Suspended,
     Idle,
@@ -182,7 +182,7 @@ pub enum State {
     Error(String),
 }
 
-impl From<pipewire::node::NodeState<'_>> for State {
+impl From<pipewire::node::NodeState<'_>> for NodeState {
     fn from(value: pipewire::node::NodeState) -> Self {
         match value {
             pipewire::node::NodeState::Error(e) => Self::Error(e.to_string()),
