@@ -8,7 +8,6 @@ use tokio::sync::broadcast;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum NodeChangeEvent {
-    Id(u32),
     Name(String),
     State(State),
     AddPort(Port),
@@ -49,13 +48,6 @@ impl Node {
     }
 
     pub(crate) fn apply_diff(&self, node: NodeValue) {
-        {
-            let mut node_value = self.value.lock().expect("Faile to get mutex");
-            if node_value.id != node.id {
-                node_value.id = node.id;
-                let _ = self.broadcast.send(NodeChangeEvent::Id(node.id));
-            }
-        }
         {
             let mut node_value = self.value.lock().expect("Faile to get mutex");
             if node_value.name != node.name {
@@ -271,4 +263,130 @@ pub struct Port {
     pub name: String,
     pub direction: Direction,
     pub format: Format,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LinkValue {
+    pub id: u32,
+    pub node_from: u32,
+    pub node_to: u32,
+    pub port_from: u32,
+    pub port_to: u32,
+    pub state: LinkState,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum LinkState {
+    Error(String),
+    Unlinked,
+    Init,
+    Negotiating,
+    Allocating,
+    Paused,
+    Active,
+}
+
+impl From<pipewire::link::LinkState<'_>> for LinkState {
+    fn from(value: pipewire::link::LinkState<'_>) -> Self {
+        match value {
+            pipewire::link::LinkState::Error(e) => LinkState::Error(e.to_owned()),
+            pipewire::link::LinkState::Unlinked => LinkState::Unlinked,
+            pipewire::link::LinkState::Init => LinkState::Init,
+            pipewire::link::LinkState::Negotiating => LinkState::Negotiating,
+            pipewire::link::LinkState::Allocating => LinkState::Allocating,
+            pipewire::link::LinkState::Paused => LinkState::Paused,
+            pipewire::link::LinkState::Active => LinkState::Active,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum LinkChangeEvent {
+    NodeFrom(u32),
+    NodeTo(u32),
+    PortFrom(u32),
+    PortTo(u32),
+    State(LinkState),
+    Remove,
+}
+
+#[derive(Clone)]
+pub struct Link {
+    value: Arc<Mutex<LinkValue>>,
+    broadcast: broadcast::Sender<LinkChangeEvent>,
+}
+
+impl std::fmt::Debug for Link {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = self.value.lock().expect("Faile to get mutex");
+        f.write_fmt(format_args!("{:#?}", value))
+    }
+}
+
+impl Link {
+    pub(crate) fn new(link_value: LinkValue) -> Self {
+        let (broadcast, _) = broadcast::channel(25);
+        Link {
+            value: Arc::new(Mutex::new(link_value)),
+            broadcast,
+        }
+    }
+
+    pub(crate) fn apply_diff(&self, link: LinkValue) {
+        {
+            let mut node_value = self.value.lock().expect("Faile to get mutex");
+            if node_value.node_from != link.node_from {
+                node_value.node_from = link.node_from;
+                let _ = self
+                    .broadcast
+                    .send(LinkChangeEvent::NodeFrom(link.node_from));
+            }
+        }
+        {
+            let mut node_value = self.value.lock().expect("Faile to get mutex");
+            if node_value.node_to != link.node_to {
+                node_value.node_to = link.node_to;
+                let _ = self.broadcast.send(LinkChangeEvent::NodeTo(link.node_to));
+            }
+        }
+        {
+            let mut node_value = self.value.lock().expect("Faile to get mutex");
+            if node_value.port_to != link.port_to {
+                node_value.port_to = link.port_to;
+                let _ = self.broadcast.send(LinkChangeEvent::PortTo(link.port_to));
+            }
+        }
+        {
+            let mut node_value = self.value.lock().expect("Faile to get mutex");
+            if node_value.port_from != link.port_from {
+                node_value.port_from = link.port_from;
+                let _ = self
+                    .broadcast
+                    .send(LinkChangeEvent::PortFrom(link.port_from));
+            }
+        }
+        self.change_state(link.state);
+    }
+
+    pub fn value(&self) -> LinkValue {
+        self.value.lock().expect("Faile to get mutex").clone()
+    }
+
+    pub fn subcribe(&self) -> (LinkValue, broadcast::Receiver<LinkChangeEvent>) {
+        let link = self.value.lock().expect("Faile to get mutex");
+        let subscribe = self.broadcast.subscribe();
+        ((*link).clone(), subscribe)
+    }
+
+    pub(crate) fn remove(&self) {
+        let _ = self.broadcast.send(LinkChangeEvent::Remove);
+    }
+
+    pub(crate) fn change_state(&self, state: LinkState) {
+        let mut node_value = self.value.lock().expect("Faile to get mutex");
+        if node_value.state != state {
+            node_value.state = state.clone();
+            let _ = self.broadcast.send(LinkChangeEvent::State(state));
+        }
+    }
 }

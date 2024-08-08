@@ -3,6 +3,7 @@ use std::{collections::HashMap, error::Error, rc::Rc};
 use pipewire::{
     context::Context,
     keys,
+    link::{Link, LinkChangeMask},
     main_loop::MainLoop,
     node::{Node, NodeChangeMask},
     port::{Port, PortChangeMask},
@@ -86,6 +87,7 @@ pub fn create_pipewire_runner(
                             .add_listener(listener)
                             .add_listener(remove_listener);
                     }
+                    let clone_state = state.clone();
                     if global.type_ == ObjectType::Port {
                         let port: Port = registry_clone.bind(global).unwrap();
                         let original_node_id = global
@@ -94,7 +96,7 @@ pub fn create_pipewire_runner(
                             .get(&keys::NODE_ID)
                             .ok_or("no node id")?
                             .parse()?;
-                        state.add_map_port(id, original_node_id);
+                        clone_state.add_map_port(id, original_node_id);
                         let clone_state = state.clone();
                         let listener = port
                             .add_listener_local()
@@ -142,7 +144,7 @@ pub fn create_pipewire_runner(
                             .upcast_ref()
                             .add_listener_local()
                             .removed(move || {
-                                let node_id = state.get_map_port(id);
+                                let node_id = clone_state.get_map_port(id);
                                 if let Some(node_id) = node_id {
                                     clone_state.get_node(node_id).remove_port(id);
                                 } else {
@@ -153,6 +155,51 @@ pub fn create_pipewire_runner(
                         (*proxies)
                             .borrow_mut()
                             .add_proxy(port)
+                            .add_listener(listener)
+                            .add_listener(remove_listener);
+                    }
+                    if global.type_ == ObjectType::Link {
+                        let link: Link = registry_clone.bind(global).unwrap();
+                        let listener = link
+                            .add_listener_local()
+                            .info(move |info| {
+                                let state = clone_state.clone();
+                                let res: Result<(), &str> = (move || {
+                                    if info.change_mask().contains(LinkChangeMask::PROPS) {
+                                        state.change_link(node::LinkValue {
+                                            id,
+                                            node_from: info.input_node_id(),
+                                            node_to: info.output_node_id(),
+                                            port_from: info.input_port_id(),
+                                            port_to: info.output_port_id(),
+                                            state: info.state().into(),
+                                        });
+                                    }
+                                    if info.change_mask().contains(LinkChangeMask::STATE)
+                                        && !info.change_mask().contains(LinkChangeMask::PROPS)
+                                    {
+                                        state.get_link(info.id()).change_state(info.state().into());
+                                    }
+                                    Ok(())
+                                })();
+                                match res {
+                                    Ok(_) => (),
+                                    Err(e) => error!("error {}", e),
+                                }
+                            })
+                            .register();
+                        let clone_state = state.clone();
+                        let remove_listener = link
+                            .upcast_ref()
+                            .add_listener_local()
+                            .removed(move || {
+                                clone_state.remove_link(id);
+                            })
+                            .register();
+
+                        (*proxies)
+                            .borrow_mut()
+                            .add_proxy(link)
                             .add_listener(listener)
                             .add_listener(remove_listener);
                     }

@@ -44,6 +44,17 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             }
                         });
                     }
+                    virtual_rack::pipewire::state::StateChangeEvent::AddLink(link) => {
+                        let (link, events) = link.subcribe();
+                        let mut events = BroadcastStream::new(events);
+                        task::spawn(async move {
+                            info!("new link {:#?}", link);
+                            let id = link.id;
+                            while let Some(event) = events.next().await {
+                                info!("link {} event {:#?}", id, event);
+                            }
+                        });
+                    }
                 },
                 Err(e) => match e {
                     broadcast::error::RecvError::Closed => break,
