@@ -18,10 +18,13 @@ use tower_http::trace::TraceLayer;
 use crate::pipewire::state::State;
 
 pub fn app(state: State) -> Router {
-    Router::new()
-        .route("/state", get(sse_handler))
-        .with_state(state)
-        .layer(TraceLayer::new_for_http())
+    Router::new().nest(
+        "/api",
+        Router::new()
+            .route("/state", get(sse_handler))
+            .with_state(state)
+            .layer(TraceLayer::new_for_http()),
+    )
 }
 
 async fn sse_handler(
@@ -32,7 +35,7 @@ async fn sse_handler(
     let (state, events) = state.subscribe();
 
     let _ = prod
-        .send(Ok(Event::default().id("init state").data(
+        .send(Ok(Event::default().event("init state").data(
             serde_json::to_string::<StateValue>(&state.into()).unwrap(),
         )))
         .await;
@@ -48,7 +51,7 @@ async fn sse_handler(
                             let mut stream = tokio_stream::wrappers::BroadcastStream::new(events)
                                 .map(|event| {
                                     event.map(|event| {
-                                        Event::default().id("node event").data(
+                                        Event::default().event("node event").data(
                                             serde_json::to_string(&NodeEvent {
                                                 id: init.id,
                                                 event: event.into(),
@@ -70,7 +73,7 @@ async fn sse_handler(
                             let mut stream = tokio_stream::wrappers::BroadcastStream::new(events)
                                 .map(|event| {
                                     event.map(|event| {
-                                        Event::default().id("link event").data(
+                                        Event::default().event("link event").data(
                                             serde_json::to_string(&LinkEvent {
                                                 id: init.id,
                                                 event: event.into(),
@@ -86,7 +89,7 @@ async fn sse_handler(
                         ("add link", serde_json::to_string::<LinkValue>(&init.into()))
                     }
                 };
-                Event::default().id(id).data(value.unwrap())
+                Event::default().event(id).data(value.unwrap())
             })
         });
         while let Some(value) = stream.next().await {
