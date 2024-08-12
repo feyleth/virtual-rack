@@ -1,4 +1,4 @@
-use tracing::{info, trace};
+use tracing::trace;
 use tracing_subscriber::{
     fmt::{self},
     layer::SubscriberExt,

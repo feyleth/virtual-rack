@@ -1,17 +1,17 @@
-use std::{convert::Infallible, error::Error, time::Duration};
+pub mod events;
 
-use async_stream::stream;
 use axum::{
     extract,
     response::{sse::Event, Sse},
     routing::get,
     Router,
 };
-use futures::{
-    future::select,
-    stream::{self, Stream},
-    TryStreamExt,
+use events::{
+    node::{LinkEvent, LinkValue, NodeEvent, NodeValue},
+    state::StateValue,
 };
+use futures::stream::Stream;
+use tokio::sync;
 use tokio_stream::{wrappers::errors::BroadcastStreamRecvError, StreamExt as _};
 use tower_http::trace::TraceLayer;
 
@@ -27,20 +27,73 @@ pub fn app(state: State) -> Router {
 async fn sse_handler(
     extract::State(state): extract::State<State>,
 ) -> Sse<impl Stream<Item = Result<Event, BroadcastStreamRecvError>>> {
-    // A `Stream` that repeats an event every second
-    //
-    // You can also create streams from tokio channels using the wrappers in
-    // https://docs.rs/tokio-stream
+    let (prod, recv) = sync::mpsc::channel(50);
+
     let (state, events) = state.subscribe();
-    let mut stream = tokio_stream::wrappers::BroadcastStream::new(events)
-        .map(|event| event.map(|event| Event::default().id("event").data(format!("{:?}", event))));
 
-    let stream = stream! {
-        yield Ok(Event::default().id("init").data(format!("{:?}", state)));
+    let _ = prod
+        .send(Ok(Event::default().id("init state").data(
+            serde_json::to_string::<StateValue>(&state.into()).unwrap(),
+        )))
+        .await;
 
-        while let Some(value) = stream.next().await{
-            yield value;
+    tokio::task::spawn(async move {
+        let mut stream = tokio_stream::wrappers::BroadcastStream::new(events).map(|event| {
+            event.map(|event| {
+                let (id, value) = match event {
+                    crate::pipewire::state::StateChangeEvent::AddNode(node) => {
+                        let (init, events) = node.subcribe();
+                        let prod_clone = prod.clone();
+                        tokio::task::spawn(async move {
+                            let mut stream = tokio_stream::wrappers::BroadcastStream::new(events)
+                                .map(|event| {
+                                    event.map(|event| {
+                                        Event::default().id("node event").data(
+                                            serde_json::to_string(&NodeEvent {
+                                                id: init.id,
+                                                event: event.into(),
+                                            })
+                                            .unwrap(),
+                                        )
+                                    })
+                                });
+                            while let Some(value) = stream.next().await {
+                                let _ = prod_clone.send(value).await;
+                            }
+                        });
+                        ("add node", serde_json::to_string::<NodeValue>(&init.into()))
+                    }
+                    crate::pipewire::state::StateChangeEvent::AddLink(link) => {
+                        let (init, events) = link.subcribe();
+                        let prod_clone = prod.clone();
+                        tokio::task::spawn(async move {
+                            let mut stream = tokio_stream::wrappers::BroadcastStream::new(events)
+                                .map(|event| {
+                                    event.map(|event| {
+                                        Event::default().id("link event").data(
+                                            serde_json::to_string(&LinkEvent {
+                                                id: init.id,
+                                                event: event.into(),
+                                            })
+                                            .unwrap(),
+                                        )
+                                    })
+                                });
+                            while let Some(value) = stream.next().await {
+                                let _ = prod_clone.send(value).await;
+                            }
+                        });
+                        ("add link", serde_json::to_string::<LinkValue>(&init.into()))
+                    }
+                };
+                Event::default().id(id).data(value.unwrap())
+            })
+        });
+        while let Some(value) = stream.next().await {
+            let _ = prod.send(value).await;
         }
-    };
-    Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::new())
+    });
+
+    Sse::new(tokio_stream::wrappers::ReceiverStream::new(recv))
+        .keep_alive(axum::response::sse::KeepAlive::new())
 }
