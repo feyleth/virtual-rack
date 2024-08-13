@@ -1,13 +1,10 @@
-import { createEffect, createSignal } from 'solid-js'
-import solidLogo from './assets/solid.svg'
-import viteLogo from '/vite.svg'
+import { createEffect } from 'solid-js'
 import './App.css'
 
 function App() {
-  const [count, setCount] = createSignal(0)
-  createEffect(() => {
+  createEffect(async () => {
 
-    const evtSource = new EventSource("api/state");
+    const evtSource = new EventSource("/api/state");
     evtSource.onmessage = function(message) {
       console.log(message.data);
 
@@ -15,6 +12,9 @@ function App() {
     evtSource.onerror = function(err) {
       console.error(err);
     }
+
+    let req = fetch("/api/test");
+    await req
   })
   return (
     <>
