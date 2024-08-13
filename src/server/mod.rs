@@ -19,20 +19,34 @@ use tracing::info;
 
 use crate::pipewire::state::State;
 
+#[cfg(build = "debug")]
+fn cors_layer(router: Router) -> Router {
+    use tower_http::cors::CorsLayer;
+
+    router.layer(CorsLayer::new())
+}
+
+#[cfg(not(build = "debug"))]
+fn cors_layer(router: Router) -> Router {
+    router
+}
+
 pub fn app(state: State) -> Router {
     let static_dir = env::var("STATIC_FILES").unwrap_or_else(|_| "./static".to_owned());
     info!("static file directory {}", static_dir);
     let serve_dir = ServeDir::new(static_dir.clone())
         .not_found_service(ServeFile::new(format!("{}/index.html", static_dir)));
-    Router::new()
-        .nest(
-            "/api",
-            Router::new()
-                .route("/state", get(sse_hanler))
-                .with_state(state)
-                .layer(TraceLayer::new_for_http()),
-        )
-        .fallback_service(serve_dir)
+    cors_layer(
+        Router::new()
+            .nest(
+                "/api",
+                Router::new()
+                    .route("/state", get(sse_hanler))
+                    .with_state(state)
+                    .layer(TraceLayer::new_for_http()),
+            )
+            .fallback_service(serve_dir),
+    )
 }
 
 #[derive(Clone, Copy)]

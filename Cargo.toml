@@ -22,6 +22,9 @@ tower-http = { version = "0.5.2", features = ["trace","fs"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
+[target.'cfg(build = "debug")'.dependencies]
+tower-http = { version = "0.5.2", features = ["trace","fs","cors"] }
+
 [dev-dependencies]
 shuttle = "0.7.1"
 

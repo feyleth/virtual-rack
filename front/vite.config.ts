@@ -1,14 +1,10 @@
-import { defineConfig } from 'vite'
-import solid from 'vite-plugin-solid'
+import { defineConfig } from "vite";
+import basicSsl from "@vitejs/plugin-basic-ssl";
+import solid from "vite-plugin-solid";
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [solid(), basicSsl({ name: "test", domains: ["localhost"] })],
   server: {
-    proxy: {
-      "/api/state": {
-        target: "http://localhost:3000",
-        changeOrigin: true
-      }
-    }
-  }
-})
+    https: true,
+  },
+});
