@@ -22,8 +22,7 @@ use crate::pipewire::state::State;
 #[cfg(build = "debug")]
 fn cors_layer(router: Router) -> Router {
     use tower_http::cors::CorsLayer;
-
-    router.layer(CorsLayer::new())
+    router.layer(CorsLayer::permissive())
 }
 
 #[cfg(not(build = "debug"))]

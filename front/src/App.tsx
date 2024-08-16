@@ -1,17 +1,16 @@
+import { RouteSectionProps } from '@solidjs/router'
 import './App.css'
+import Footer from './Footer'
 
-import { Router } from "@solidjs/router";
 
-const routes = [{
-  path: "/",
-  component: import("./routes/index.tsx"),
-}]
-
-function App() {
+function App(props: RouteSectionProps) {
   return (
-    <Router>
-      {routes}
-    </Router>
+    <>
+      <main>
+        {props.children}
+      </main>
+      <Footer />
+    </>
   )
 }
 
