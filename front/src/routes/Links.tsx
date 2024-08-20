@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from "solid-js";
+import { onCleanup } from "solid-js";
 import { watch_state } from "../api"
 import "./Links.css"
 import Node from "../components/Node.tsx"

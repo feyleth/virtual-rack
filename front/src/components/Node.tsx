@@ -1,30 +1,50 @@
 import { onMount } from "solid-js";
+import { Position } from "./svg";
+import Ports from "./Ports";
 
-interface Position {
-    x: number,
-    y: number
-}
+type Props = Position & {}
 
-export default (position: Position) => {
+export default (props: Props) => {
     let textRef: SVGTextElement | undefined;
     let rectRef: SVGRectElement | undefined;
-    let border = 2;
-    let margin = 10;
+    let inRef: SVGGElement | undefined;
+    let outRef: SVGGElement | undefined;
+    let text = "eqsdqsd sqddqsd qsd qsd qsd qsd";
+    let recBorder = 2;
+    let rectPadding = 10;
+    let portGaps = 10;
+    let portMargin = 10;
 
     onMount(() => {
-        let safeText = textRef!;
-        let safeRect = rectRef!;
-        let size = safeText.getBBox();
-        safeRect.style.width = (size.width + margin * 2 + border * 2) + "px"
-        safeRect.style.height = (size.height + margin * 2 + border * 2) + "px"
 
-        safeText.style.transform = "translate(" + (position.x + margin + size.width / 2 + border) + "px, " + (position.y + margin + border) + "px )"
+
+        // text
+        let safeText = textRef!;
+        let canvas = document.createElement("canvas");
+        let ctx = canvas.getContext("2d")!;
+        ctx.font = window.getComputedStyle(safeText, null).getPropertyValue("font");
+        let mesureSize = ctx.measureText(text);
+        let textSize = { width: mesureSize.width, height: mesureSize.emHeightAscent + mesureSize.emHeightDescent };
+        safeText.style.transform = "translate(" + (props.x + rectPadding + textSize.width / 2) + "px, " + (props.y + rectPadding) + "px )"
+
+
+
+        //rectangle 
+        let safeRect = rectRef!;
+        safeRect.style.width = (textSize.width + rectPadding * 2 + recBorder * 2) + "px"
+        safeRect.style.height = (textSize.height + rectPadding * 2 + recBorder * 2) + "px"
+
     })
     return (
         <g font-size="3rem">
-            <rect ref={rectRef!} y={position.y + "px"} x={position.x + "px"} fill="none" stroke-width={border} stroke="black">
+            <rect ref={rectRef!} y={props.y + "px"} x={props.x + "px"} fill="none" stroke-width={recBorder} stroke="black">
             </rect>
-            <text ref={textRef!} text-anchor="middle" dominant-baseline="hanging" >eqsdqsd sqddqsd qsd qsd qsd qsd</text>
+            <text ref={textRef!} text-anchor="middle" dominant-baseline="hanging" >{text}</text>
+            <g ref={inRef}>
+                <Ports x={0} y={0} text="Ports" dotPosition="Left" />
+            </g>
+            <g ref={outRef!}>
+            </g>
         </g >
     )
 }
