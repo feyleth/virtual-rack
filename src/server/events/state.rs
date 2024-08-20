@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use o2o::o2o;
 use serde::{Deserialize, Serialize};
 
@@ -15,8 +13,8 @@ use super::node::{LinkValue, NodeValue};
 #[derive(Debug, Deserialize, Serialize, o2o)]
 #[from_owned(crate::pipewire::state::StateValue)]
 pub struct StateValue {
-    #[from(~.into_iter().map(|(index,item)|(index,item.value().into())).collect())]
-    pub nodes: HashMap<u32, NodeValue>,
-    #[from(~.into_iter().map(|(index,item)|(index,item.value().into())).collect())]
-    pub link: HashMap<u32, LinkValue>,
+    #[from(~.into_iter().map(|(_,item)|item.value().into()).collect())]
+    pub nodes: Vec<NodeValue>,
+    #[from(~.into_iter().map(|(_,item)|item.value().into()).collect())]
+    pub link: Vec<LinkValue>,
 }

@@ -1,0 +1,22 @@
+.node {
+    position: absolute;
+    padding: 4px;
+    border: 1px solid black;
+    display: grid;
+    grid-template-rows: auto auto;
+    grid-template-columns: auto auto;
+    grid-template-areas: "name name"
+        "in out";
+}
+
+.node h1 {
+    margin: 0;
+}
+
+.out {
+    justify-self: end;
+}
+
+.name {
+    grid-area: name;
+}

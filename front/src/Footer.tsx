@@ -1,10 +1,10 @@
 import { A } from "@solidjs/router"
 
-import "./Footer.css"
+import styles from "./Footer.module.css"
 
 export default () => {
     return (
-        <footer>
+        <footer class={styles.footer}>
             <nav>
                 <ul>
                     <li><A href="/">Pedal Board</A></li>

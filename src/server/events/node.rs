@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use o2o::o2o;
 use serde::{Deserialize, Serialize};
 
@@ -29,8 +27,8 @@ pub struct NodeValue {
     pub state: NodeState,
     #[from(~.into())]
     pub media: Media,
-    #[from(~.into_iter().map(|(index,item)|(index,item.into())).collect())]
-    pub ports: HashMap<u32, Port>,
+    #[from(~.into_iter().map(|(_,item)|item.into()).collect())]
+    pub ports: Vec<Port>,
 }
 
 #[derive(Debug, Serialize, Deserialize, o2o)]

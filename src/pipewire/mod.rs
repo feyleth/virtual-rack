@@ -30,7 +30,10 @@ fn handle_node(proxies: Rc<RefCell<Proxies>>, state: State, id: u32, node: Node)
                 if info.change_mask().contains(NodeChangeMask::PROPS) {
                     let props = info.props().ok_or("no props")?;
 
-                    let name = props.get(&keys::NODE_NAME).ok_or("no name")?;
+                    let name = props
+                        .get(&keys::NODE_DESCRIPTION)
+                        .or_else(|| props.get(&keys::NODE_NAME))
+                        .ok_or("no name")?;
                     let media = props.get(&keys::MEDIA_CLASS);
                     state.change_node(node::NodeValue {
                         id,
