@@ -12,6 +12,6 @@ const root = document.getElementById('root')
 render(() =>
     <Router root={App}>
         <Route path="/" component={lazy(() => import("./routes/Index.tsx"))} />
-        <Route path="/links" component={lazy(() => import("./routes/Links.tsx"))} />
+        <Route path="/links" component={lazy(() => import("./routes/Nodes.tsx"))} />
     </Router>
     , root!)

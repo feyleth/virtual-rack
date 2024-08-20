@@ -24,10 +24,7 @@ export default (props: Props) => {
             </div>
             <div class={styles.out}>
 
-                <For each={Array.from(props.node.ports).filter((el) => {
-                    console.log(Direction.Out)
-                    return (el.direction === Direction.Out)
-                })}>
+                <For each={Array.from(props.node.ports).filter((el) => el.direction === Direction.Out)}>
                     {(port) => (
                         <Port port={port} direction="out" />
                     )}
