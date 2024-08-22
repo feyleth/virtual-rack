@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, error::Error, rc::Rc};
 
+use node::NodeTypeDirection;
 use pipewire::{
     context::Context,
     keys,
@@ -35,18 +36,26 @@ fn handle_node(proxies: Rc<RefCell<Proxies>>, state: State, id: u32, node: Node)
                         .or_else(|| props.get(&keys::NODE_NAME))
                         .ok_or("no name")?;
                     let media = props.get(&keys::MEDIA_CLASS);
+                    let category = props
+                        .get(&keys::MEDIA_CATEGORY)
+                        .filter(|name| name.contains("Duplex"))
+                        .and(Some(NodeTypeDirection::Both));
                     state.change_node(node::NodeValue {
                         id,
                         media: media.into(),
                         name: name.to_owned(),
                         state: info.state().into(),
                         ports: HashMap::new(),
+                        node_type: category.unwrap_or_else(|| media.into()),
                     });
                 }
                 if info.change_mask().contains(NodeChangeMask::STATE)
                     && !info.change_mask().contains(NodeChangeMask::PROPS)
                 {
-                    state.get_node(info.id()).change_state(info.state().into());
+                    state.get_node(info.id()).and_then(|node| {
+                        node.change_state(info.state().into());
+                        Some(node)
+                    });
                 }
                 Ok(())
             })();
@@ -96,19 +105,23 @@ fn handle_port(
                     clone_state.modify_map_port(id, new_node_id);
                     if let Some(old_node_id) = old_node_id {
                         if old_node_id != new_node_id {
-                            clone_state.get_node(old_node_id).remove_port(id);
+                            clone_state.get_node(old_node_id).and_then(|node| {
+                                node.remove_port(id);
+                                Some(node)
+                            });
                         }
                     } else {
                         error!("old node not exist {}", id);
                     }
-                    clone_state
-                        .get_node(new_node_id)
-                        .replace_or_add_port(node::Port {
+                    clone_state.get_node(new_node_id).and_then(|node| {
+                        node.replace_or_add_port(node::Port {
                             id,
                             name: name.to_owned(),
                             direction: direction.into(),
                             format: format.into(),
                         });
+                        Some(node)
+                    });
                 }
                 Ok(())
             })();
@@ -125,7 +138,10 @@ fn handle_port(
         .removed(move || {
             let node_id = clone_state.get_map_port(id);
             if let Some(node_id) = node_id {
-                clone_state.get_node(node_id).remove_port(id);
+                clone_state.get_node(node_id).and_then(|node| {
+                    node.remove_port(id);
+                    Some(node)
+                });
             } else {
                 error!("no node id for port {}", id);
             }

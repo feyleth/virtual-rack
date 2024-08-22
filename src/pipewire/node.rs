@@ -14,6 +14,14 @@ pub enum NodeChangeEvent {
     ModifyPort(Port),
     RemovePort(u32),
     Remove,
+    NodeType(NodeTypeDirection),
+}
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeTypeDirection {
+    In,
+    Out,
+    Both,
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +31,7 @@ pub struct NodeValue {
     pub state: NodeState,
     pub media: Media,
     pub ports: HashMap<u32, Port>,
+    pub node_type: NodeTypeDirection,
 }
 
 #[derive(Clone)]
@@ -53,6 +62,12 @@ impl Node {
             if node_value.name != node.name {
                 node_value.name = node.name.clone();
                 let _ = self.broadcast.send(NodeChangeEvent::Name(node.name));
+            }
+            if node_value.node_type != node.node_type {
+                node_value.node_type = node.node_type.clone();
+                let _ = self
+                    .broadcast
+                    .send(NodeChangeEvent::NodeType(node.node_type));
             }
         }
         self.change_state(node.state);
@@ -213,6 +228,19 @@ impl From<Option<&str>> for Media {
                 value => Media::Unknow(value.to_string()),
             },
             None => Media::None,
+        }
+    }
+}
+
+impl From<Option<&str>> for NodeTypeDirection {
+    fn from(value: Option<&str>) -> Self {
+        match value {
+            Some(value) => match value {
+                v if v.contains("Sink") || v.contains("Input") => NodeTypeDirection::In,
+                v if v.contains("Source") || v.contains("Output") => NodeTypeDirection::Out,
+                _ => NodeTypeDirection::None,
+            },
+            None => NodeTypeDirection::None,
         }
     }
 }

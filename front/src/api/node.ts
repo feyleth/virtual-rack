@@ -12,12 +12,19 @@ export enum NodeState {
   Running = "Running",
   Error = "Error",
 }
+export enum NodeTypeDirection {
+  In = "In",
+  Out = "Out",
+  Both = "Both",
+  None = "None",
+}
 export interface Node {
   id: number;
   name: string;
   state: NodeState;
   media: Media;
   ports: Port[];
+  nodeType: NodeTypeDirection;
 }
 
 export enum Direction {

@@ -8,6 +8,15 @@ pub struct NodeEvent {
 }
 
 #[derive(Debug, Serialize, Deserialize, o2o)]
+#[from_owned(crate::pipewire::node::NodeTypeDirection)]
+pub enum NodeTypeDirection {
+    In,
+    Out,
+    Both,
+    None,
+}
+
+#[derive(Debug, Serialize, Deserialize, o2o)]
 #[from_owned(crate::pipewire::node::NodeChangeEvent)]
 pub enum NodeChangeEvent {
     Name(String),
@@ -15,11 +24,13 @@ pub enum NodeChangeEvent {
     AddPort(#[from(~.into())] Port),
     ModifyPort(#[from(~.into())] Port),
     RemovePort(u32),
+    NodeType(#[from(~.into())] NodeTypeDirection),
     Remove,
 }
 
 #[derive(Debug, Serialize, Deserialize, o2o)]
 #[from_owned(crate::pipewire::node::NodeValue)]
+#[serde(rename_all = "camelCase")]
 pub struct NodeValue {
     pub id: u32,
     pub name: String,
@@ -29,6 +40,8 @@ pub struct NodeValue {
     pub media: Media,
     #[from(~.into_iter().map(|(_,item)|item.into()).collect())]
     pub ports: Vec<Port>,
+    #[from(~.into())]
+    pub node_type: NodeTypeDirection,
 }
 
 #[derive(Debug, Serialize, Deserialize, o2o)]

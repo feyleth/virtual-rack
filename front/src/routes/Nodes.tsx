@@ -1,8 +1,8 @@
-import { createMemo, For, onCleanup } from "solid-js";
+import { createEffect, createMemo, For, onCleanup } from "solid-js";
 import { watch_state } from "../api/api.ts"
 import styles from "./Nodes.module.css"
 import Node from "../components/Node.tsx"
-import { Direction, Node as NodeApi } from "../api/node.ts"
+import { Node as NodeApi, NodeTypeDirection } from "../api/node.ts"
 import { createStore } from "solid-js/store";
 
 
@@ -17,20 +17,20 @@ export default () => {
         events.close()
     })
 
-    let noPortNode = createMemo(() => nodeState.filter(node => node.ports.length == 0))
+    let noPortNode = createMemo(() => nodeState.filter(node => node.nodeType === NodeTypeDirection.None))
     let inPortNode = createMemo(() => nodeState.filter(node =>
-        node.ports.filter(port => port.direction === Direction.In).length > 0 &&
-        node.ports.filter(port => port.direction === Direction.Out).length === 0)
-    )
+        node.nodeType === NodeTypeDirection.In
+    ));
     let outPortNode = createMemo(() => nodeState.filter(node =>
-        node.ports.filter(port => port.direction === Direction.Out).length > 0 &&
-        node.ports.filter(port => port.direction === Direction.In).length === 0)
-    )
+        node.nodeType === NodeTypeDirection.Out
+    ))
     let bothPortNode = createMemo(() => nodeState.filter(node =>
-        node.ports.filter(port => port.direction === Direction.Out).length > 0 &&
-        node.ports.filter(port => port.direction === Direction.In).length > 0)
-    )
+        node.nodeType === NodeTypeDirection.Both
+    ))
 
+    createEffect(() => {
+        console.log(noPortNode())
+    })
 
     return (<div class={styles.nodes}>
         <div class={styles.start}>

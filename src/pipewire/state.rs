@@ -60,14 +60,13 @@ impl State {
         self
     }
 
-    pub fn get_node(&self, node_id: u32) -> Node {
+    pub fn get_node(&self, node_id: u32) -> Option<Node> {
         self.value
             .lock()
             .expect("Faile to get mutex")
             .nodes
-            .get_mut(&node_id)
-            .unwrap()
-            .clone()
+            .get(&node_id)
+            .map(|node| node.clone())
     }
 
     pub(crate) fn remove_node(&self, node_id: u32) {

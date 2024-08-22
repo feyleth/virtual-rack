@@ -7,11 +7,12 @@
     grid-template-areas: "name name"
         "in out";
     gap: 20px;
+    padding: 10px;
 }
 
 .node h1 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     text-align: center;
 }
 
