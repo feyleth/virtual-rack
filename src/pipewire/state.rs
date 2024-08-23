@@ -16,7 +16,7 @@ pub enum StateChangeEvent {
 #[derive(Clone, Debug)]
 pub struct StateValue {
     pub nodes: HashMap<u32, Node>,
-    pub link: HashMap<u32, Link>,
+    pub links: HashMap<u32, Link>,
 }
 
 #[derive(Clone)]
@@ -39,7 +39,7 @@ impl State {
         State {
             value: Arc::new(Mutex::new(StateValue {
                 nodes: HashMap::new(),
-                link: HashMap::new(),
+                links: HashMap::new(),
             })),
             port_map: Arc::new(Mutex::new(HashMap::new())),
             broadcast,
@@ -82,12 +82,12 @@ impl State {
     }
     pub(crate) fn change_link(&self, link: LinkValue) -> &Self {
         let mut state = self.value.lock().expect("Faile to get mutex");
-        if let Some(store_node) = state.link.get_mut(&link.id) {
+        if let Some(store_node) = state.links.get_mut(&link.id) {
             store_node.apply_diff(link);
         } else {
             let id = link.id;
-            state.link.insert(id, Link::new(link));
-            let node = state.link.get(&id).expect("node exist");
+            state.links.insert(id, Link::new(link));
+            let node = state.links.get(&id).expect("node exist");
 
             let _ = self.broadcast.send(StateChangeEvent::AddLink(node.clone()));
         }
@@ -98,7 +98,7 @@ impl State {
         self.value
             .lock()
             .expect("Faile to get mutex")
-            .link
+            .links
             .get_mut(&link_id)
             .unwrap()
             .clone()
@@ -109,7 +109,7 @@ impl State {
             .value
             .lock()
             .expect("Faile to get mutex")
-            .link
+            .links
             .remove_entry(&link_id);
         if let Some((_, node)) = node {
             node.remove();
@@ -140,5 +140,10 @@ impl State {
         let state = self.value.lock().expect("Faile to get mutex");
         let subscribe = self.broadcast.subscribe();
         ((*state).clone(), subscribe)
+    }
+
+    pub fn get(&self) -> StateValue {
+        let state = self.value.lock().expect("Faile to get mutex");
+        state.clone()
     }
 }

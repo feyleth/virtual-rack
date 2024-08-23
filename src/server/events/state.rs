@@ -16,5 +16,5 @@ pub struct StateValue {
     #[from(~.into_iter().map(|(_,item)|item.value().into()).collect())]
     pub nodes: Vec<NodeValue>,
     #[from(~.into_iter().map(|(_,item)|item.value().into()).collect())]
-    pub link: Vec<LinkValue>,
+    pub links: Vec<LinkValue>,
 }
