@@ -10,7 +10,7 @@ type Props = {
 export default function(props: Props) {
     return (
         <div class={styles.port}>
-            <span>{props.direction == "in" ? (<>&bull;</>) : null}</span> {props.port.name} <span>{props.direction == "out" ? (<>&bull;</>) : null}</span>
+            {props.direction == "in" ? (<span class="port-dot" data-id={props.port.id}>&bull;</span>) : null} {props.port.name} {props.direction == "out" ? (<span class="port-dot" data-id={props.port.id}>&bull;</span>) : null}
         </div>
     )
 }

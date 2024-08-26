@@ -44,3 +44,22 @@ export interface Port {
   direction: Direction;
   format: Format;
 }
+
+export interface Link {
+  id: number,
+  node_from: number,
+  node_to: number,
+  port_from: number,
+  port_to: number,
+  state: LinkState,
+}
+
+export enum LinkState {
+  Error = "ErrorError",
+  Unlinked = "Unlinked",
+  Init = "Init",
+  Negotiating = "NegotiatingNegotiating",
+  Allocating = "AllocatingAllocating",
+  Paused = "PausedPaused",
+  Active = "ActiveActive",
+}

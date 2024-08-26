@@ -1,6 +1,6 @@
-import { Port, Node } from "./node";
+import { Node, Link } from "./node";
 
 export interface State {
   nodes: Node[];
-  ports: Port[];
+  links: Link[];
 }
