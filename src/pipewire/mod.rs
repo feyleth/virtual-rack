@@ -163,10 +163,10 @@ fn handle_link(proxies: Rc<RefCell<Proxies>>, state: State, id: u32, link: Link)
                 if info.change_mask().contains(LinkChangeMask::PROPS) {
                     state.change_link(node::LinkValue {
                         id,
-                        node_from: info.input_node_id(),
-                        node_to: info.output_node_id(),
-                        port_from: info.input_port_id(),
-                        port_to: info.output_port_id(),
+                        node_from: info.output_node_id(),
+                        node_to: info.input_node_id(),
+                        port_from: info.output_port_id(),
+                        port_to: info.input_port_id(),
                         state: info.state().into(),
                     });
                 }
