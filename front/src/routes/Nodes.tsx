@@ -5,12 +5,13 @@ import Node from "../components/Node.tsx"
 import { NodeTypeDirection } from "../api/node.ts"
 import { createStore } from "solid-js/store";
 import { State } from "../api/state.ts";
+import Link, { LinkType } from "../components/Link.tsx";
 
 
 export default () => {
     let events = watch_state();
     let [state, setState] = createStore<State>({ nodes: [], links: [] });
-    let [links, setLinks] = createStore<{ from: { top: number, left: number }, to: { top: number, left: number } }[]>([]);
+    let [links, setLinks] = createStore<LinkType[]>([]);
     events.addEventListener("init state", (e) => {
         let state = (JSON.parse(e.data) as State);
         setState(state)
@@ -49,14 +50,11 @@ export default () => {
             let computeFrom = portFrom!.getBoundingClientRect();
             let computeTo = portTo!.getBoundingClientRect();
 
-            return { from: { top: computeFrom.top, left: computeFrom.left }, to: { top: computeTo.top, left: computeTo.left } }
+            return { from: { top: computeFrom.top + computeFrom.height / 2, left: computeFrom.left + computeFrom.width / 2 }, to: { top: computeTo.top + computeTo.height / 2, left: computeTo.left + computeTo.width / 2 } }
         }).filter(el => el !== null)
 
         setLinks(linksPosition)
     }))
-
-    createEffect(() => { console.log(links.map(el => el)) })
-
 
     return (<div class={styles.nodes}>
         <div class={styles.start}>
@@ -80,5 +78,10 @@ export default () => {
                 }
             </For>
         </div>
+        <svg class={styles.svg}>
+            <For each={links}>
+                {(link) => <Link link={link} />}
+            </For>
+        </svg>
     </div>)
 }
