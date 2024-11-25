@@ -43,14 +43,14 @@ export default () => {
             let portTo = document.querySelector(`.port-dot[data-id="${link.port_to}"]`)
 
             if (portFrom === null || portTo === null) {
-                console.error("missing port", link.port_from, portFrom, link.port_to, portTo);
+                console.warn("missing port", link.port_from, portFrom, link.port_to, portTo);
                 return null
             }
 
             let computeFrom = portFrom!.getBoundingClientRect();
             let computeTo = portTo!.getBoundingClientRect();
 
-            return { from: { top: computeFrom.top + computeFrom.height / 2, left: computeFrom.left + computeFrom.width / 2 }, to: { top: computeTo.top + computeTo.height / 2, left: computeTo.left + computeTo.width / 2 } }
+            return { from: { top: computeFrom.top + computeFrom.height / 2 + window.scrollY, left: computeFrom.left + computeFrom.width / 2 + window.scrollX }, to: { top: computeTo.top + computeTo.height / 2 + window.scrollY, left: computeTo.left + computeTo.width / 2 + window.scrollX } }
         }).filter(el => el !== null)
 
         setLinks(linksPosition)
