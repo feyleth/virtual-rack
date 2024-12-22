@@ -3,6 +3,7 @@ import styles from "./Node.module.css"
 import Port from "./Port"
 import { Direction, Node } from "../api/node"
 import { Store } from "solid-js/store"
+import { Item, Menu, useContextMenu } from "./ContextMenu"
 
 type Props = {
     node: Store<Node>
@@ -10,8 +11,14 @@ type Props = {
 
 export default (props: Props) => {
 
+    let { show, hide } = useContextMenu((<Menu>
+        <Item onclick={() => { console.log("test"); hide() }}>
+            select
+        </Item>
+    </Menu>))
+
     return (
-        <div class={styles.node}>
+        <div class={styles.node} oncontextmenu={(e) => show(e)}>
             <h1 class={styles.name}>
                 {props.node.name}
             </h1>

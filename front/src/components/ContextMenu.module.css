@@ -1,0 +1,25 @@
+.global {
+    position: absolute;
+    z-index: 1000;
+
+    ul {
+        margin: 0;
+        padding: 0;
+        display: inline;
+    }
+
+    li {
+        list-style: none;
+        display: inline;
+    }
+
+    &:focus {
+        outline: none;
+    }
+}
+
+.menu {
+    width: 10px;
+    height: 10px;
+    border: 1px solid black;
+}
