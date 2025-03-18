@@ -39,14 +39,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         http: 3000,
         https: 3001,
     };
-    // tokio::spawn(redirect_http_to_https(ports));
+    tokio::spawn(redirect_http_to_https(ports));
     let state = State::default();
 
     let pipewire = create_pipewire_runner(state.clone());
-    let addr = SocketAddr::from(([127, 0, 0, 1], ports.http));
+    let addr = SocketAddr::from(([127, 0, 0, 1], ports.https));
     tracing::debug!("listening on {}", addr);
-    // axum_server::bind_rustls(addr, rustls_config().await)
-    axum_server::bind(addr)
+    axum_server::bind_rustls(addr, rustls_config().await)
+        // axum_server::bind(addr)
         .serve(app(state).into_make_service())
         .await
         .unwrap();
