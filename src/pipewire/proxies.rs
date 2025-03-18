@@ -13,7 +13,7 @@ pub struct Proxies {
 }
 
 pub struct Proxie<'a>(&'a mut Vec<Box<dyn Listener>>);
-impl<'a> Proxie<'a> {
+impl Proxie<'_> {
     pub fn add_listener(self, listener: impl Listener + 'static) -> Self {
         self.0.push(Box::new(listener));
         self

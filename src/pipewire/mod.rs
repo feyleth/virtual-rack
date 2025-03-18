@@ -52,7 +52,7 @@ fn handle_node(proxies: Rc<RefCell<Proxies>>, state: State, id: u32, node: Node)
                 if info.change_mask().contains(NodeChangeMask::STATE)
                     && !info.change_mask().contains(NodeChangeMask::PROPS)
                 {
-                    state.get_node(info.id()).and_then(|node| {
+                    state.get_node(info.id()).map(|node| {
                         node.change_state(info.state().into());
                         Some(node)
                     });
@@ -105,7 +105,7 @@ fn handle_port(
                     clone_state.modify_map_port(id, new_node_id);
                     if let Some(old_node_id) = old_node_id {
                         if old_node_id != new_node_id {
-                            clone_state.get_node(old_node_id).and_then(|node| {
+                            clone_state.get_node(old_node_id).map(|node| {
                                 node.remove_port(id);
                                 Some(node)
                             });
@@ -113,7 +113,7 @@ fn handle_port(
                     } else {
                         error!("old node not exist {}", id);
                     }
-                    clone_state.get_node(new_node_id).and_then(|node| {
+                    clone_state.get_node(new_node_id).map(|node| {
                         node.replace_or_add_port(node::Port {
                             id,
                             name: name.to_owned(),
@@ -138,7 +138,7 @@ fn handle_port(
         .removed(move || {
             let node_id = clone_state.get_map_port(id);
             if let Some(node_id) = node_id {
-                clone_state.get_node(node_id).and_then(|node| {
+                clone_state.get_node(node_id).map(|node| {
                     node.remove_port(id);
                     Some(node)
                 });
@@ -159,7 +159,7 @@ fn handle_link(proxies: Rc<RefCell<Proxies>>, state: State, id: u32, link: Link)
         .add_listener_local()
         .info(move |info| {
             let state = &clone_state;
-            let res: Result<(), &str> = (move || {
+            let res: Result<(), &str> = {
                 if info.change_mask().contains(LinkChangeMask::PROPS) {
                     state.change_link(node::LinkValue {
                         id,
@@ -176,7 +176,7 @@ fn handle_link(proxies: Rc<RefCell<Proxies>>, state: State, id: u32, link: Link)
                     state.get_link(info.id()).change_state(info.state().into());
                 }
                 Ok(())
-            })();
+            };
             match res {
                 Ok(_) => (),
                 Err(e) => error!("error {}", e),

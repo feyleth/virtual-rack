@@ -33,8 +33,8 @@ impl std::fmt::Debug for State {
     }
 }
 
-impl State {
-    pub fn new() -> Self {
+impl Default for State {
+    fn default() -> Self {
         let (broadcast, _) = broadcast::channel(25);
         State {
             value: Arc::new(Mutex::new(StateValue {
@@ -45,7 +45,9 @@ impl State {
             broadcast,
         }
     }
+}
 
+impl State {
     pub(crate) fn change_node(&self, node: NodeValue) -> &Self {
         let mut state = self.value.lock().expect("Faile to get mutex");
         if let Some(store_node) = state.nodes.get_mut(&node.id) {
@@ -66,7 +68,7 @@ impl State {
             .expect("Faile to get mutex")
             .nodes
             .get(&node_id)
-            .map(|node| node.clone())
+            .cloned()
     }
 
     pub(crate) fn remove_node(&self, node_id: u32) {
@@ -133,7 +135,7 @@ impl State {
             .lock()
             .expect("Faile to get mutex")
             .get(&port_id)
-            .map(|value| value.clone())
+            .cloned()
     }
 
     pub fn subscribe(&self) -> (StateValue, broadcast::Receiver<StateChangeEvent>) {

@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         https: 3001,
     };
     // tokio::spawn(redirect_http_to_https(ports));
-    let state = State::new();
+    let state = State::default();
 
     let pipewire = create_pipewire_runner(state.clone());
     let addr = SocketAddr::from(([127, 0, 0, 1], ports.http));

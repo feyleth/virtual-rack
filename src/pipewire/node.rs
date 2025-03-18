@@ -125,19 +125,19 @@ mod test {
         use std::collections::HashMap;
 
         use shuttle::thread;
-        use tokio::runtime::Builder;
 
         use crate::pipewire::node::{NodeChangeEvent, NodeValue};
 
-        use super::{Format, Node};
+        use super::Node;
         shuttle::check_random(
             move || {
                 let node = Node::new(super::NodeValue {
                     id: 1,
                     name: "test".to_owned(),
                     state: super::NodeState::Idle,
-                    class: Format::Audio,
                     ports: HashMap::new(),
+                    media: crate::pipewire::node::Media::Audio,
+                    node_type: crate::pipewire::node::NodeTypeDirection::Both,
                 });
 
                 let clone_node = node.clone();
@@ -156,7 +156,8 @@ mod test {
                         NodeValue {
                             id: 1,
                             name: "test".to_owned(),
-                            class: Format::Audio,
+                            media: crate::pipewire::node::Media::Audio,
+                            node_type: crate::pipewire::node::NodeTypeDirection::Both,
                             state: crate::pipewire::node::NodeState::Idle,
                             ports: HashMap::new(),
                         }
@@ -176,7 +177,8 @@ mod test {
                         NodeValue {
                             id: 1,
                             name: "test".to_owned(),
-                            class: Format::Audio,
+                            media: crate::pipewire::node::Media::Audio,
+                            node_type: crate::pipewire::node::NodeTypeDirection::Both,
                             state: crate::pipewire::node::NodeState::Running,
                             ports: HashMap::new(),
                         }

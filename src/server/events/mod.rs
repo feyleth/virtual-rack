@@ -66,8 +66,8 @@ pub async fn sse_hanler(
             .for_each(move |event| {
                 let clone_state_handler = state_handler.clone();
                 let clone_prod = prod.clone();
-                match event {
-                    Ok(event) => match event {
+                if let Ok(event) = event {
+                    match event {
                         crate::pipewire::state::StateChangeEvent::AddNode(node) => {
                             let (_, events) = node.subcribe();
                             let state_handler = clone_state_handler.clone();
@@ -88,8 +88,7 @@ pub async fn sse_hanler(
                                     .await;
                             });
                         }
-                    },
-                    Err(_) => (),
+                    }
                 }
                 send_update(prod.clone(), state_handler.clone())
             })
